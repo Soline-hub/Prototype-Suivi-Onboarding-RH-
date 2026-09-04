@@ -1,0 +1,92 @@
+// Schéma Prisma du prototype "Suivi Onboarding RH".
+// SQLite est utilisé comme stockage local pour ce prototype ; le schéma
+// n'a pas de dépendance vis-à-vis d'une future source Boond (voir src/lib/datasource).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum TypeContrat {
+  CDI
+  CDD
+  ALTERNANCE
+  STAGE
+}
+
+enum StatutCollaborateur {
+  ACTIF
+  PARTI
+}
+
+enum TypeCheckpoint {
+  S1
+  M2
+  M4
+  M6
+}
+
+// Statut "stocké" du point de suivi. Le statut "en retard" affiché à
+// l'utilisateur est dérivé (voir src/lib/checkpoints.ts) à partir de la
+// date prévue et de ce statut : un point A_VENIR dont la date est dépassée
+// est affiché "en retard" sans qu'on ait besoin d'un job de mise à jour.
+enum StatutCheckpoint {
+  A_VENIR
+  FAIT
+  ANNULE
+}
+
+enum Ressenti {
+  POSITIF
+  NEUTRE
+  A_SURVEILLER
+}
+
+model Collaborateur {
+  id             String              @id @default(cuid())
+  nom            String
+  prenom         String
+  dateEmbauche   DateTime
+  typeContrat    TypeContrat
+  poste          String?
+  equipe         String?
+  bu             String?
+  manager        String?
+  padReferent    String?
+  statut         StatutCollaborateur @default(ACTIF)
+  dateDepart     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  checkpoints Checkpoint[]
+
+  @@index([statut])
+  @@index([dateEmbauche])
+}
+
+model Checkpoint {
+  id               String           @id @default(cuid())
+  collaborateurId  String
+  type             TypeCheckpoint
+  datePrevue       DateTime
+  statut           StatutCheckpoint @default(A_VENIR)
+  dateRealisation  DateTime?
+
+  // Notes structurées, remplies quand le point passe à "Fait".
+  ressenti         Ressenti?
+  pointsAlerte     String?
+  actionsASuivre   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  collaborateur Collaborateur @relation(fields: [collaborateurId], references: [id], onDelete: Cascade)
+
+  @@unique([collaborateurId, type])
+  @@index([datePrevue])
+  @@index([statut])
+}
