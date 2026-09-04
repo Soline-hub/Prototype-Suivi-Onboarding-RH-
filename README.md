@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Suivi Onboarding RH
 
-## Getting Started
+Prototype d'outil web pour piloter les points de suivi RH d'onboarding chez WeFiiT :
+**S+1**, **M+2**, **M+4** (tripartite RH/PAD/CPL) et **M+6** (RH + collaborateur),
+calculés automatiquement à partir de la date d'embauche de chaque collaborateur.
 
-First, run the development server:
+## Stack technique
+
+- **Next.js 16** (App Router) + **TypeScript** — frontend et API dans un seul projet
+- **Tailwind CSS** — style sobre et neutre
+- **Prisma + SQLite** — stockage local du prototype (statuts, notes, référentiel collaborateurs)
+- Aucune authentification (accès partagé, pas de portefeuille cloisonné par HRBP)
+
+## Démarrage rapide
 
 ```bash
+npm install
+cp .env.example .env      # DATABASE_URL="file:./dev.db"
+npx prisma migrate deploy # crée la base SQLite locale
+npm run seed               # charge 15 collaborateurs de démonstration
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+L'application est disponible sur [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> Le jeu de données de démonstration couvre volontairement tous les cas de figure :
+> points en retard, déjà faits (avec notes), à venir, et un collaborateur parti dont
+> les points restants ont été annulés.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Réinitialiser les données
 
-## Learn More
+```bash
+rm prisma/dev.db
+npx prisma migrate deploy
+npm run seed
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Vues de l'application
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Prochaines échéances** (`/`) — bandeau de stats (retards, échéances sous 7 jours,
+   répartition par type) puis liste chronologique des points sur un horizon glissant de
+   90 jours ; les points en retard restent toujours visibles même hors de cette fenêtre.
+   Filtres par type de point et recherche libre par nom. Action rapide "Marquer fait"
+   avec saisie des notes structurées (ressenti, points d'alerte, actions à suivre).
+2. **Fiche individuelle** (`/collaborateurs/[id]`) — infos du collaborateur et parcours
+   complet de ses 4 points avec statuts et notes. Permet aussi de marquer le
+   collaborateur comme "parti" (les points non réalisés sont alors annulés
+   automatiquement).
+3. **Import CSV** (`/import`) — dépôt d'un fichier CSV, mapping des colonnes (avec
+   auto-détection), aperçu, puis import. Les 4 points de suivi sont générés
+   automatiquement pour chaque collaborateur importé. Un fichier d'exemple est
+   disponible dans l'écran d'import (`public/sample-import.csv`).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Règles de calcul des échéances
 
-## Deploy on Vercel
+- S+1 = date d'embauche + 7 jours calendaires
+- M+2 / M+4 / M+6 = date d'embauche + 2 / 4 / 6 mois calendaires (même jour du mois)
+- Chaque date est ensuite décalée au **prochain jour ouvré** si elle tombe un week-end
+  ou un jour férié français (fixes + mobiles : Lundi de Pâques, Ascension, Lundi de
+  Pentecôte, calculés via l'algorithme de Meeus/Jones/Butcher — voir `src/lib/dates.ts`)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Un point est affiché "en retard" dès que sa date prévue est dépassée sans avoir été
+marqué "fait" ou "annulé" — ce statut est calculé à l'affichage (`src/lib/checkpoints.ts`),
+sans job planifié.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Abstraction de la source de données (préparer le connecteur Boond)
+
+Le reste de l'application ne dépend jamais directement d'un CSV ou de données figées :
+elle consomme l'interface `CollaborateurSource` (`src/lib/datasource/types.ts`) :
+
+```ts
+interface CollaborateurSource {
+  readonly label: string;
+  fetchCollaborateurs(): Promise<CollaborateurInput[]>;
+}
+```
+
+Deux implémentations existent aujourd'hui :
+
+- `src/lib/datasource/csv.ts` — parsing et mapping de colonnes CSV (utilisé par l'écran d'import)
+- `src/lib/datasource/demo.ts` — jeu de données de démonstration (utilisé par `prisma/seed.ts`)
+
+Pour brancher l'API Boond plus tard, il suffira d'écrire une nouvelle implémentation
+(`BoondCollaborateurSource`) de cette même interface, sans modifier le reste du code
+(génération des points de suivi, écrans, routes API).
+
+## Modèle de données
+
+- **Collaborateur** : identité, date d'embauche, type de contrat, poste/équipe/BU,
+  manager/CPL, PAD référent, statut (actif/parti) + date de départ
+- **Checkpoint** (point de suivi) : type (S1/M2/M4/M6), date prévue, statut
+  (à venir/fait/annulé — "en retard" est dérivé à l'affichage), date de réalisation,
+  et notes structurées (ressenti, points d'alerte, actions à suivre) une fois "fait"
+
+Cycle de vie d'un point : les 4 points sont générés automatiquement à la création ou à
+l'import d'un collaborateur. S'il est marqué "parti" avant d'avoir terminé son parcours,
+ses points non réalisés passent automatiquement en "annulé" (ils restent visibles dans
+l'historique, rien n'est masqué ni supprimé).
+
+## Structure du projet
+
+```
+prisma/
+  schema.prisma        modèle de données (Collaborateur, Checkpoint)
+  seed.ts               jeu de données de démonstration
+src/
+  app/
+    page.tsx                        vue "Prochaines échéances"
+    collaborateurs/[id]/page.tsx    fiche individuelle
+    import/page.tsx                 écran d'import CSV
+    api/                            routes API (checkpoints, collaborateurs, stats, import)
+  components/           composants UI (badges, tableau, filtres, formulaires)
+  lib/
+    dates.ts             jours fériés FR + calcul des jours ouvrés
+    checkpoints.ts        génération des points, statut dérivé, cycle de vie
+    labels.ts             libellés et styles partagés (client + API)
+    datasource/            abstraction de la source de données collaborateurs
+```
+
+## Ce qui n'est pas dans ce prototype (v1)
+
+- Connexion directe à l'API Boond (seule l'abstraction est prête)
+- Génération d'invitations Outlook/calendrier
+- Notifications push/email automatiques
+- Portefeuilles HRBP cloisonnés
+- Authentification utilisateur
