@@ -1,13 +1,14 @@
 // Schéma Prisma du prototype "Suivi Onboarding RH".
-// SQLite est utilisé comme stockage local pour ce prototype ; le schéma
-// n'a pas de dépendance vis-à-vis d'une future source Boond (voir src/lib/datasource).
+// PostgreSQL est utilisé comme stockage (compatible hébergement serverless
+// type Vercel, contrairement à un fichier SQLite local) ; le schéma n'a pas
+// de dépendance vis-à-vis d'une future source Boond (voir src/lib/datasource).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

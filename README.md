@@ -8,15 +8,21 @@ calculés automatiquement à partir de la date d'embauche de chaque collaborateu
 
 - **Next.js 16** (App Router) + **TypeScript** — frontend et API dans un seul projet
 - **Tailwind CSS** — style sobre et neutre
-- **Prisma + SQLite** — stockage local du prototype (statuts, notes, référentiel collaborateurs)
+- **Prisma + PostgreSQL** — stockage (statuts, notes, référentiel collaborateurs). PostgreSQL
+  est nécessaire dès qu'on sort du poste local : un fichier SQLite ne survit pas à un
+  hébergement serverless (Vercel, Netlify…) dont le système de fichiers est en lecture
+  seule ou éphémère — toute création/import y échouerait silencieusement.
 - Aucune authentification (accès partagé, pas de portefeuille cloisonné par HRBP)
 
 ## Démarrage rapide
 
+Il faut une base PostgreSQL accessible (locale via Docker/Postgres.app, ou un service
+gratuit type [Neon](https://neon.tech) / [Supabase](https://supabase.com) / Vercel Postgres).
+
 ```bash
 npm install
-cp .env.example .env      # DATABASE_URL="file:./dev.db"
-npx prisma migrate deploy # crée la base SQLite locale
+cp .env.example .env      # renseigner DATABASE_URL avec votre connexion PostgreSQL
+npx prisma migrate deploy # crée les tables
 npm run seed               # charge 15 collaborateurs de démonstration
 npm run dev
 ```
@@ -30,10 +36,20 @@ L'application est disponible sur [http://localhost:3000](http://localhost:3000).
 ### Réinitialiser les données
 
 ```bash
-rm prisma/dev.db
-npx prisma migrate deploy
+npx prisma migrate reset --skip-seed
 npm run seed
 ```
+
+### Déployer sur Vercel
+
+1. Dans le projet Vercel : onglet **Storage** → **Create Database** → **Postgres**, puis
+   **Connect** au projet (ajoute automatiquement la variable d'environnement `DATABASE_URL`).
+2. Redéployer. Les migrations doivent être appliquées une fois sur cette base (depuis votre
+   poste, avec `DATABASE_URL` pointée sur la base Vercel) :
+   ```bash
+   DATABASE_URL="<url copiée depuis Vercel>" npx prisma migrate deploy
+   DATABASE_URL="<url copiée depuis Vercel>" npm run seed   # optionnel, données de démo
+   ```
 
 ## Vues de l'application
 
