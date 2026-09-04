@@ -49,7 +49,7 @@ export function MarkDoneModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <h2 className="text-lg font-semibold text-slate-900">
-          Marquer "{CHECKPOINT_LABELS[checkpoint.type]}" comme fait
+          Marquer &laquo;&nbsp;{CHECKPOINT_LABELS[checkpoint.type]}&nbsp;&raquo; comme fait
         </h2>
         <p className="mt-1 text-sm text-slate-500">
           {checkpoint.collaborateur.prenom} {checkpoint.collaborateur.nom}

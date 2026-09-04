@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckpointTypeBadge, StatusBadge } from "@/components/Badge";
 import { MarkDoneModal } from "@/components/MarkDoneModal";
-import { CHECKPOINT_DESCRIPTIONS, CHECKPOINT_LABELS, RESSENTI_LABELS, TYPE_CONTRAT_LABELS } from "@/lib/labels";
+import { CHECKPOINT_DESCRIPTIONS, RESSENTI_LABELS, TYPE_CONTRAT_LABELS } from "@/lib/labels";
 import type { CheckpointListItem, CollaborateurDetail } from "@/types";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
