@@ -5,12 +5,15 @@ import { toUTCMidnight } from "@/lib/dates";
 import { CHECKPOINT_TYPES, deriveDisplayStatus } from "@/lib/checkpoints";
 import type { TypeCheckpoint } from "@prisma/client";
 
+const HORIZON_DAYS = 90;
+
 /** Bandeau de stats du dashboard : retards, échéances sous 7 jours, répartition par type. */
 export async function GET() {
   const checkpoints = await prisma.checkpoint.findMany();
 
   const today = toUTCMidnight(new Date());
   const in7Days = addDays(today, 7);
+  const horizonEnd = addDays(today, HORIZON_DAYS);
 
   let late = 0;
   let upcomingWithin7Days = 0;
@@ -21,8 +24,9 @@ export async function GET() {
     if (displayStatus === "EN_RETARD") {
       late += 1;
     } else if (displayStatus === "A_VENIR") {
-      byType[cp.type] += 1;
       const d = toUTCMidnight(cp.datePrevue);
+      // Répartition alignée sur l'horizon glissant affiché dans la vue "Prochaines échéances".
+      if (d <= horizonEnd) byType[cp.type] += 1;
       if (d >= today && d <= in7Days) upcomingWithin7Days += 1;
     }
   }

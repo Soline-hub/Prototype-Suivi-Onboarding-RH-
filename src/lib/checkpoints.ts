@@ -1,25 +1,10 @@
-import type { Checkpoint, PrismaClient, Ressenti, StatutCheckpoint, TypeCheckpoint } from "@prisma/client";
+import type { Checkpoint, PrismaClient, Ressenti, StatutCheckpoint } from "@prisma/client";
 import { computeCheckpointDates, toUTCMidnight } from "./dates";
 import type { CollaborateurInput } from "./datasource/types";
+import { CHECKPOINT_TYPES, type DisplayStatus } from "./labels";
 
-export const CHECKPOINT_TYPES: TypeCheckpoint[] = ["S1", "M2", "M4", "M6"];
-
-export const CHECKPOINT_LABELS: Record<TypeCheckpoint, string> = {
-  S1: "S+1",
-  M2: "M+2",
-  M4: "M+4 (tripartite)",
-  M6: "M+6",
-};
-
-export const CHECKPOINT_DESCRIPTIONS: Record<TypeCheckpoint, string> = {
-  S1: "1 semaine après l'embauche",
-  M2: "2 mois après l'embauche",
-  M4: "Point tripartite — RH + PAD + CPL (manager)",
-  M6: "Point RH + collaborateur, sans manager/PAD",
-};
-
-/** Statut affiché à l'utilisateur : dérive "en retard" à partir de la date prévue, sans job planifié. */
-export type CheckpointDisplayStatus = "A_VENIR" | "EN_RETARD" | "FAIT" | "ANNULE";
+export { CHECKPOINT_TYPES };
+export type CheckpointDisplayStatus = DisplayStatus;
 
 export function deriveDisplayStatus(checkpoint: {
   statut: StatutCheckpoint;
