@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import type { CollaborateurInput, CollaborateurSource, StatutCollaborateurInput, TypeContratInput } from "./types";
+import type { CollaborateurInput, StatutCollaborateurInput, TypeContratInput } from "./types";
 import { TARGET_FIELDS, type TargetField } from "./fields";
 
 export interface CsvParseResult {
@@ -151,18 +151,4 @@ export function buildCollaborateursFromCsv(
   });
 
   return { collaborateurs, errors };
-}
-
-export function createCsvCollaborateurSource(csvText: string, mapping: ColumnMapping): CollaborateurSource {
-  return {
-    label: "Import CSV",
-    async fetchCollaborateurs() {
-      const { rows } = parseCsvText(csvText);
-      const { collaborateurs, errors } = buildCollaborateursFromCsv(rows, mapping);
-      if (errors.length > 0) {
-        throw new Error(errors.map((e) => (e.rowIndex >= 0 ? `Ligne ${e.rowIndex + 2} : ${e.message}` : e.message)).join("\n"));
-      }
-      return collaborateurs;
-    },
-  };
 }

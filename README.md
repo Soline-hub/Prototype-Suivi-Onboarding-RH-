@@ -46,10 +46,15 @@ npm run seed
    complet de ses 4 points avec statuts et notes. Permet aussi de marquer le
    collaborateur comme "parti" (les points non réalisés sont alors annulés
    automatiquement).
-3. **Import CSV** (`/import`) — dépôt d'un fichier CSV, mapping des colonnes (avec
+3. **Nouveau collaborateur** (`/collaborateurs/nouveau`) — formulaire de création manuelle
+   d'un nouvel arrivant (nom, date d'embauche, type de contrat, poste/équipe/BU,
+   manager/PAD). C'est le chemin normal pour ajouter les arrivées au fil de l'eau : les
+   4 points de suivi sont générés automatiquement, puis on est redirigé vers sa fiche.
+4. **Import Excel/CSV** (`/import`) — dépôt d'un fichier Excel (`.xlsx`) ou CSV pour
+   importer en masse un référentiel collaborateurs existant, mapping des colonnes (avec
    auto-détection), aperçu, puis import. Les 4 points de suivi sont générés
-   automatiquement pour chaque collaborateur importé. Un fichier d'exemple est
-   disponible dans l'écran d'import (`public/sample-import.csv`).
+   automatiquement pour chaque collaborateur importé. Des fichiers d'exemple sont
+   disponibles dans l'écran d'import (`public/sample-import.xlsx` et `.csv`).
 
 ## Règles de calcul des échéances
 
@@ -63,10 +68,10 @@ Un point est affiché "en retard" dès que sa date prévue est dépassée sans a
 marqué "fait" ou "annulé" — ce statut est calculé à l'affichage (`src/lib/checkpoints.ts`),
 sans job planifié.
 
-## Abstraction de la source de données (préparer le connecteur Boond)
+## Abstraction de la source de données
 
-Le reste de l'application ne dépend jamais directement d'un CSV ou de données figées :
-elle consomme l'interface `CollaborateurSource` (`src/lib/datasource/types.ts`) :
+Le reste de l'application ne dépend jamais directement d'un format de fichier ou de
+données figées : elle consomme l'interface `CollaborateurSource` (`src/lib/datasource/types.ts`) :
 
 ```ts
 interface CollaborateurSource {
@@ -77,12 +82,15 @@ interface CollaborateurSource {
 
 Deux implémentations existent aujourd'hui :
 
-- `src/lib/datasource/csv.ts` — parsing et mapping de colonnes CSV (utilisé par l'écran d'import)
+- `src/lib/datasource/csv.ts` + `src/lib/datasource/spreadsheet.ts` — parsing et mapping
+  de colonnes pour un fichier Excel (`.xlsx`) ou CSV (utilisé par l'écran d'import)
 - `src/lib/datasource/demo.ts` — jeu de données de démonstration (utilisé par `prisma/seed.ts`)
 
-Pour brancher l'API Boond plus tard, il suffira d'écrire une nouvelle implémentation
-(`BoondCollaborateurSource`) de cette même interface, sans modifier le reste du code
-(génération des points de suivi, écrans, routes API).
+Le point d'entrée d'un nouveau collaborateur au quotidien reste la création manuelle
+(`/collaborateurs/nouveau`, route `POST /api/collaborateurs`) ; l'import Excel/CSV sert
+aux imports en masse ponctuels. Si une source externe (type API RH) devait être branchée
+plus tard, il suffirait d'écrire une nouvelle implémentation de cette même interface,
+sans modifier le reste du code (génération des points de suivi, écrans, routes API).
 
 ## Modèle de données
 
@@ -105,21 +113,22 @@ prisma/
   seed.ts               jeu de données de démonstration
 src/
   app/
-    page.tsx                        vue "Prochaines échéances"
-    collaborateurs/[id]/page.tsx    fiche individuelle
-    import/page.tsx                 écran d'import CSV
-    api/                            routes API (checkpoints, collaborateurs, stats, import)
+    page.tsx                          vue "Prochaines échéances"
+    collaborateurs/[id]/page.tsx      fiche individuelle
+    collaborateurs/nouveau/page.tsx   création manuelle d'un collaborateur
+    import/page.tsx                   écran d'import Excel/CSV
+    api/                              routes API (checkpoints, collaborateurs, stats, import)
   components/           composants UI (badges, tableau, filtres, formulaires)
   lib/
     dates.ts             jours fériés FR + calcul des jours ouvrés
     checkpoints.ts        génération des points, statut dérivé, cycle de vie
     labels.ts             libellés et styles partagés (client + API)
-    datasource/            abstraction de la source de données collaborateurs
+    datasource/            abstraction de la source de données collaborateurs (CSV, Excel, démo)
 ```
 
 ## Ce qui n'est pas dans ce prototype (v1)
 
-- Connexion directe à l'API Boond (seule l'abstraction est prête)
+- Connexion directe à une API RH externe (seule l'abstraction `CollaborateurSource` est prête)
 - Génération d'invitations Outlook/calendrier
 - Notifications push/email automatiques
 - Portefeuilles HRBP cloisonnés

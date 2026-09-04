@@ -21,9 +21,16 @@ interface ImportResult {
 
 const IGNORE = "";
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
 export function ImportForm() {
   const [fileName, setFileName] = useState<string | null>(null);
-  const [csvText, setCsvText] = useState<string | null>(null);
+  const [fileBase64, setFileBase64] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -34,18 +41,18 @@ export function ImportForm() {
     setError(null);
     setResult(null);
     setFileName(file.name);
-    const text = await file.text();
-    setCsvText(text);
+    const base64 = arrayBufferToBase64(await file.arrayBuffer());
+    setFileBase64(base64);
     setLoading(true);
     try {
       const res = await fetch("/api/import/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csvText: text }),
+        body: JSON.stringify({ fileName: file.name, fileBase64: base64 }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "Impossible de lire ce fichier CSV");
+        throw new Error(body.error ?? "Impossible de lire ce fichier");
       }
       const data = (await res.json()) as PreviewResponse;
       setPreview(data);
@@ -59,14 +66,14 @@ export function ImportForm() {
   }
 
   async function handleImport() {
-    if (!csvText) return;
+    if (!fileBase64 || !fileName) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csvText, mapping }),
+        body: JSON.stringify({ fileName, fileBase64, mapping }),
       });
       const data = (await res.json()) as ImportResult;
       if (!res.ok) throw new Error((data as unknown as { error?: string }).error ?? "Échec de l'import");
@@ -80,7 +87,7 @@ export function ImportForm() {
 
   function reset() {
     setFileName(null);
-    setCsvText(null);
+    setFileBase64(null);
     setPreview(null);
     setMapping({});
     setResult(null);
@@ -92,10 +99,10 @@ export function ImportForm() {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-slate-200 bg-white p-6">
-        <label className="block text-sm font-medium text-slate-700">Fichier CSV</label>
+        <label className="block text-sm font-medium text-slate-700">Fichier Excel (.xlsx) ou CSV</label>
         <input
           type="file"
-          accept=".csv,text/csv"
+          accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFile(file);
@@ -104,8 +111,13 @@ export function ImportForm() {
         />
         {fileName && <p className="mt-2 text-xs text-slate-500">Fichier sélectionné : {fileName}</p>}
         <p className="mt-3 text-xs text-slate-500">
+          Exemple de fichier :{" "}
+          <a href="/sample-import.xlsx" download className="underline hover:text-slate-700">
+            Excel
+          </a>{" "}
+          ·{" "}
           <a href="/sample-import.csv" download className="underline hover:text-slate-700">
-            Télécharger un exemple de fichier CSV
+            CSV
           </a>
         </p>
       </div>

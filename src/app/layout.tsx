@@ -27,12 +27,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/" className="text-lg font-semibold text-slate-900">
               Suivi Onboarding RH
             </Link>
-            <nav className="flex gap-6 text-sm font-medium text-slate-600">
+            <nav className="flex items-center gap-6 text-sm font-medium text-slate-600">
               <Link href="/" className="hover:text-slate-900">
                 Prochaines échéances
               </Link>
               <Link href="/import" className="hover:text-slate-900">
                 Import collaborateurs
+              </Link>
+              <Link
+                href="/collaborateurs/nouveau"
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-white hover:bg-slate-800"
+              >
+                + Nouveau collaborateur
               </Link>
             </nav>
           </div>
